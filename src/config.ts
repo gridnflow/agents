@@ -1,5 +1,8 @@
 import dotenv from "dotenv";
-dotenv.config();
+import path from "path";
+import { baseDir } from "./paths";
+// dev: 프로젝트 루트 .env / 패키징: userData/.env (설정창이 저장하는 위치)
+dotenv.config({ path: path.join(baseDir(), ".env") });
 
 export const ENV = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",

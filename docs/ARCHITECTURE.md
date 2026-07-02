@@ -11,7 +11,8 @@ Electron 표준 구조를 따릅니다. 모든 외부 API 호출(OpenAI, ElevenL
 │ main.ts        창 생성, IPC 핸들러, .env/settings.json   │
 │ scheduler.ts   node-schedule 브리핑 잡                    │
 │ BaseAgent.ts   브리핑·회의 응답·TTS 오케스트레이션          │
-│ services/      openai(gpt-4o, whisper) · elevenlabs · news│
+│ paths.ts       쓰기 경로 (dev: 프로젝트 루트 / 패키징: userData)│
+│ services/      openai · elevenlabs · news · findComplain · csv│
 └──────────────┬──────────────────────────────────────────┘
                │ IPC (preload.ts의 contextBridge)
 ┌──────────────┴──────────────────────────────────────────┐
@@ -113,6 +114,15 @@ scheduler(schedule-digest 시각, 기본 09:00) 또는 바의 📋 버튼(run-di
 - **응답 라우팅**: 메시지에 이름/별칭이 포함되면 해당 에이전트만 응답, 없으면 참석 전원이 순차 응답. 별칭 테이블은 Whisper 오인식 보정용입니다 (예: "Bunny" → "Bonnie").
 - **순차 발화**: for-loop로 한 에이전트씩 응답 생성 → 말풍선 + TTS 재생이 끝나야 다음 에이전트로 넘어갑니다. 릴레이 구조(Foxy가 문제 제시 → Kitty가 아이디어 전개)는 이 순차 실행 + 시스템 프롬프트로 구현됩니다.
 - 마이크(VAD 라이브 모드)와 카메라(셀프뷰)도 지원합니다.
+
+### 에이전트 도구 (근거 데이터)
+
+- **Foxy**: 브리핑·다이제스트 시 `findComplain.ts`가 find_complain 백엔드(`localhost:8080/api/app-ideas/top`, `FIND_COMPLAIN_URL`로 변경 가능)에서 Reddit 불만 분석 결과를 가져옵니다. 3초 안에 응답이 없으면 NewsAPI로 폴백.
+- **Bunny**: `csv.ts`가 `data/` 폴더의 최신 CSV를 파싱해 숫자 컬럼 통계 + 샘플 행 요약을 만들고, 회의 응답과 다이제스트 비용 추정 시 시스템 프롬프트에 `[Tool data]`로 주입됩니다.
+
+## 패키징 (.dmg)
+
+`npm run dist`가 electron-builder로 서명 없는 .dmg를 `release/`에 만듭니다. asar 내부는 읽기 전용이므로 쓰기 경로는 전부 `paths.ts`의 `baseDir()`를 거칩니다 — dev에서는 프로젝트 루트, 패키징 앱에서는 `~/Library/Application Support/ai-agents/` (.env, digests/, memory/, data/, assets/audio/). `assets/audio`(TTS 캐시)는 패키지에서 제외됩니다.
 
 ## 캐릭터 정의 (`config.ts`)
 

@@ -4,19 +4,11 @@ import type { BrowserWindow } from "electron";
 import { AGENTS, AgentConfig } from "./config";
 import { BaseAgent } from "./agents/BaseAgent";
 import { fetchNews } from "./services/news";
+import { fetchComplaints } from "./services/findComplain";
 import { generateMeetingResponse, summarizeDigest } from "./services/openai";
+import { summarizeLatestCsv } from "./services/csv";
 import { appendMessage } from "./memory";
-
-// Electron 없이(headless 테스트) 실행돼도 동작하도록 앱 경로를 안전하게 조회
-function getBaseDir(): string {
-  try {
-    const { app } = require("electron");
-    if (app?.getAppPath) return app.getAppPath();
-  } catch {
-    /* plain node */
-  }
-  return process.cwd();
-}
+import { baseDir } from "./paths";
 
 function byId(id: string): AgentConfig {
   const agent = AGENTS.find((a) => a.id === id);
@@ -59,7 +51,10 @@ export async function runDailyDigest(
 
   console.log("[digest] 데일리 다이제스트 시작");
 
-  const news = await fetchNews(foxy.keywords).catch(() => "No news available today.");
+  // find_complain(Reddit 불만 분석) 실데이터 우선, 없으면 뉴스 폴백
+  const news =
+    (await fetchComplaints()) ??
+    (await fetchNews(foxy.keywords).catch(() => "No news available today."));
 
   const transcript: Turn[] = [];
   const push = (name: string, text: string) => transcript.push({ name, text });
@@ -80,11 +75,14 @@ export async function runDailyDigest(
   );
   push(kitty.name, kittyText);
 
+  const csvNote = summarizeLatestCsv();
   const bunnyText = await speakTurn(
     bunny,
     `[Daily standup — do NOT greet, answer directly] Foxy reported: "${foxyText}"\n` +
       `Kitty proposed: "${kittyText}"\n` +
-      `Give a rough cost estimate (APIs, infra, tools) to build an MVP of Kitty's idea.`
+      (csvNote ? `Current budget data:\n${csvNote}\n` : "") +
+      `Give a rough cost estimate (APIs, infra, tools) to build an MVP of Kitty's idea.`,
+    `[Daily standup] Foxy reported: "${foxyText}" / Kitty proposed: "${kittyText}" — give an MVP cost estimate.`
   );
   push(bunny.name, bunnyText);
 
@@ -104,7 +102,7 @@ export async function runDailyDigest(
   // digests/YYYY-MM-DD.md 저장 (같은 날 재실행 시 -HHMM 붙임)
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10);
-  const dir = path.join(getBaseDir(), "digests");
+  const dir = path.join(baseDir(), "digests");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   let filePath = path.join(dir, `${dateStr}.md`);

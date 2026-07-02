@@ -6,7 +6,29 @@
   "scripts": {
     "dev": "bash dev.sh",
     "build": "tsc",
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "tsc && electron-builder --mac dmg"
+  },
+  "build": {
+    "appId": "com.yeong.ai-agents",
+    "productName": "AI Agents",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "src/renderer/**/*",
+      "assets/images/**/*",
+      "assets/videos/**/*",
+      "assets/icon/**/*",
+      "package.json",
+      "!assets/audio/**"
+    ],
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon/agents.icns",
+      "category": "public.app-category.productivity"
+    }
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.36.0",
@@ -21,6 +43,7 @@
     "@types/node-schedule": "^2.1.0",
     "concurrently": "^8.0.0",
     "electron": "^28.3.3",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.0.0"
   }
 }

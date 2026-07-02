@@ -69,6 +69,22 @@ npm run dev
 
 `dev.sh`가 TypeScript watch 컴파일과 Electron을 함께 띄웁니다. 빌드만 하려면 `npm run build`, 빌드된 결과 실행은 `npm start`.
 
+### 4. 배포용 .dmg 빌드
+
+```bash
+npm run dist   # → release/AI Agents-<버전>-arm64.dmg
+```
+
+패키징된 앱은 `.env`·다이제스트·대화 기억·오디오를 `~/Library/Application Support/ai-agents/`에 저장합니다 (API 키는 설정창에서 입력).
+
+### Bunny에게 데이터 주기
+
+`data/` 폴더에 CSV(가계부, 지출 내역 등)를 넣으면 Bunny가 최신 파일의 통계를 근거로 답합니다.
+
+### Foxy에게 실데이터 주기
+
+find_complain 백엔드(`localhost:8080`)를 켜두면 Foxy가 Reddit 불만 분석 결과로 브리핑합니다. 꺼져 있으면 NewsAPI로 자동 폴백합니다. 주소는 `FIND_COMPLAIN_URL` 환경 변수로 변경 가능.
+
 ## 프로젝트 구조
 
 ```
@@ -104,7 +120,8 @@ agents/
 ## 로드맵
 
 - [x] **자동 아침 회의 → 데일리 다이제스트**: 스케줄러와 회의 모드를 묶어 매일 아침 에이전트들끼리 자동 회의를 돌리고 결과를 마크다운 일지로 저장
-- [ ] **find_complain 연동**: Foxy가 Reddit 불만 수집·분석 백엔드(find_complain)의 실데이터를 받아 브리핑
-- [ ] **에이전트 도구 부여**: Bunny에게 CSV/가계부 파일 읽기, Foxy에게 실시간 뉴스 API 요약 등 근거 데이터 제공
+- [x] **find_complain 연동**: Foxy가 Reddit 불만 수집·분석 백엔드(find_complain)의 실데이터를 받아 브리핑 — `localhost:8080` 백엔드가 켜져 있으면 자동 사용, 꺼져 있으면 NewsAPI 폴백
+- [x] **에이전트 도구 부여**: Bunny가 `data/` 폴더의 최신 CSV(가계부/지출 내역)를 읽어 실제 숫자로 답변 (Foxy는 find_complain + NewsAPI)
 - [x] **대화 기억 영속화**: 회의 히스토리를 파일로 저장해 세션 간 연속성 확보
-- [ ] **배포**: electron-builder로 .dmg 패키징(아이콘 `assets/icon/agents.icns` 준비됨), 로그인 시 자동 시작, 글로벌 단축키(푸시투토크)
+- [x] **배포**: electron-builder .dmg 패키징 (`npm run dist` → `release/AI Agents-*.dmg`)
+- [ ] 로그인 시 자동 시작, 글로벌 단축키(푸시투토크)

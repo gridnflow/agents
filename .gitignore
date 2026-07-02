@@ -1,5 +1,6 @@
 node_modules/
 dist/
+release/
 
 # API 키 관련 - 절대 깃에 올리지 않음
 .env
@@ -37,3 +38,4 @@ assets/audio/*.wav
 
 # package-lock (선택)
 # package-lock.json
+data/

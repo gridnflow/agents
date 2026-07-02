@@ -5,6 +5,8 @@ import { AGENTS } from "./config";
 import { triggerAgent, rescheduleAgent, scheduleDailyDigest } from "./scheduler";
 import { runDailyDigest } from "./digest";
 import { appendMessage, getContext } from "./memory";
+import { summarizeLatestCsv } from "./services/csv";
+import { baseDir } from "./paths";
 import { BaseAgent } from "./agents/BaseAgent";
 import { transcribeAudio } from "./services/openai";
 
@@ -17,8 +19,8 @@ let tray: Tray | null = null;
 let digestRunning = false;
 const greetingCache = new Map<string, string>(); // agentId → audioPath
 
-// 설정 파일 경로 (.env는 프로젝트 루트, settings.json은 userData)
-const ENV_PATH = path.join(app.getAppPath(), ".env");
+// 설정 파일 경로 (.env는 dev: 프로젝트 루트 / 패키징: userData, settings.json은 userData)
+const ENV_PATH = path.join(baseDir(), ".env");
 const SETTINGS_PATH = path.join(app.getPath("userData"), "settings.json");
 
 // .env 파일 파싱
@@ -335,7 +337,7 @@ ipcMain.handle("run-digest", async () => {
 
 // 가장 최근 다이제스트 내용 반환 (위젯용)
 ipcMain.handle("get-latest-digest", () => {
-  const dir = path.join(app.getAppPath(), "digests");
+  const dir = path.join(baseDir(), "digests");
   if (!fs.existsSync(dir)) return null;
   const files = fs.readdirSync(dir)
     .filter((f) => f.endsWith(".md"))
@@ -374,7 +376,10 @@ ipcMain.handle("meeting-message", async (_event, agentId: string, text: string) 
   if (!agentConfig) throw new Error(`Agent not found: ${agentId}`);
   appendMessage(agentId, "user", text);
   const agent = new BaseAgent(agentConfig);
-  const result = await agent.runMeeting(getContext(agentId));
+  // Bunny에게는 data/ 폴더의 최신 CSV 요약을 근거 데이터로 제공
+  const contextNote =
+    agentId === "rabbit_budget_analyst" ? summarizeLatestCsv() ?? undefined : undefined;
+  const result = await agent.runMeeting(getContext(agentId), contextNote);
   if (result.text) appendMessage(agentId, "assistant", result.text);
   return result;
 });
