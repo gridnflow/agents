@@ -1,0 +1,103 @@
+# AI Agents — 맥 데스크탑 AI 에이전트 캐릭터
+
+macOS 데스크탑 위에 항상 떠 있는 AI 캐릭터 바입니다. 여우·고양이·토끼 세 캐릭터가 각자의 역할(뉴스 앵커, 아이디어 플래너, 예산 분석가)을 가지고 음성으로 브리핑하고, 회의 모드에서는 사용자와 함께 릴레이 토론을 합니다.
+
+![screenshot](ui/Gemini_Image.png)
+
+## 캐릭터
+
+| 캐릭터 | 이름 | 역할 | 기본 브리핑 시간 |
+|---|---|---|---|
+| 🦊 여우 | **Foxy** | 뉴스 앵커 — 인터넷/뉴스에서 사람들의 불만·문제·미충족 니즈를 헌팅 | 09:00 |
+| 🐱 고양이 | **Kitty** | 아이디어 플래너 — Foxy가 찾은 문제를 실행 가능한 아이디어·전략으로 전개 | 11:00 |
+| 🐰 토끼 | **Bunny** | 예산 분석가 — API·SaaS·인프라 비용을 숫자로 분석 | 14:00 |
+
+회의 모드에서는 인사 후 Foxy가 먼저 문제를 던지고 → Kitty가 아이디어로 받는 릴레이 구조로 설계되어 있습니다.
+
+## 주요 기능
+
+- **데스크탑 바**: 투명·프레임리스·항상 위(always-on-top) 창에 캐릭터 비디오가 떠 있고, 드래그로 위치 이동(위치는 자동 저장·복원)
+- **음성 브리핑**: NewsAPI로 키워드 뉴스 수집 → OpenAI(gpt-4o)로 요약 → ElevenLabs TTS로 캐릭터별 목소리 재생
+- **회의(Meeting) 모드**: 3캐릭터 그룹 채팅. 대화 히스토리를 유지하며 각 에이전트가 페르소나에 맞게 응답
+- **음성 입력**: 마이크 녹음 → OpenAI Whisper STT로 텍스트 변환
+- **스케줄러**: node-schedule 기반, 캐릭터별 브리핑 시간을 설정창에서 변경 가능 (현재 자동 브리핑은 `main.ts`에서 비활성화 상태)
+- **인사말 캐싱**: 앱 시작 시 각 캐릭터의 인사 음성을 미리 생성해 호버 시 즉시 재생
+- **설정창**: API 키, 캐릭터별 Voice ID, 스케줄, 사용자 프로필을 GUI에서 편집 (`.env` + `settings.json`에 저장)
+
+## 기술 스택
+
+- **Electron 28** + **TypeScript** — 데스크탑 앱
+- **OpenAI** — gpt-4o (대화·브리핑), whisper-1 (STT)
+- **ElevenLabs** — 캐릭터별 TTS 음성
+- **NewsAPI** — 브리핑용 뉴스 수집
+- **node-schedule** — 브리핑 스케줄러
+
+## 시작하기
+
+### 1. 설치
+
+```bash
+npm install
+```
+
+### 2. 환경 변수
+
+프로젝트 루트에 `.env` 파일을 만듭니다 (설정창에서 GUI로 입력해도 됩니다):
+
+```env
+OPENAI_API_KEY=sk-...
+ELEVENLABS_API_KEY=...
+NEWS_API_KEY=...
+
+# ElevenLabs에서 생성한 캐릭터별 Voice ID
+VOICE_FOX=...
+VOICE_CAT=...
+VOICE_RABBIT=...
+
+# (선택) 에이전트에게 전달할 사용자 소개
+USER_PROFILE=...
+```
+
+### 3. 실행
+
+```bash
+npm run dev
+```
+
+`dev.sh`가 TypeScript watch 컴파일과 Electron을 함께 띄웁니다. 빌드만 하려면 `npm run build`, 빌드된 결과 실행은 `npm start`.
+
+## 프로젝트 구조
+
+```
+agents/
+├── src/
+│   ├── main.ts            # Electron 메인 프로세스 — 창 관리, IPC 핸들러, 설정 저장
+│   ├── config.ts          # 에이전트 정의 (페르소나, 시스템 프롬프트, 키워드, 스케줄)
+│   ├── scheduler.ts       # node-schedule 기반 브리핑 스케줄러
+│   ├── preload.ts         # 렌더러 ↔ 메인 IPC 브리지
+│   ├── agents/
+│   │   └── BaseAgent.ts   # 브리핑 / 회의 응답 / TTS 공통 로직
+│   ├── services/
+│   │   ├── openai.ts      # gpt-4o 대화·브리핑, Whisper STT
+│   │   ├── elevenlabs.ts  # TTS
+│   │   └── news.ts        # NewsAPI 뉴스 수집
+│   └── renderer/
+│       ├── bar.html       # 데스크탑 캐릭터 바
+│       ├── meeting.html   # 3-에이전트 회의창
+│       └── settings.html  # 설정창
+├── assets/
+│   ├── images/            # 캐릭터 이미지·비디오
+│   ├── videos/            # 말하기 애니메이션 (webm)
+│   └── audio/             # 생성된 TTS mp3 캐시
+└── dev.sh                 # tsc watch + electron 실행 스크립트
+```
+
+동작 원리(창 구조, IPC 맵, 브리핑·회의·음성 대화 흐름)는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)에 정리되어 있습니다.
+
+## 로드맵
+
+- [ ] **자동 아침 회의 → 데일리 다이제스트**: 스케줄러와 회의 모드를 묶어 매일 아침 에이전트들끼리 자동 회의를 돌리고 결과를 마크다운 일지로 저장
+- [ ] **find_complain 연동**: Foxy가 Reddit 불만 수집·분석 백엔드(find_complain)의 실데이터를 받아 브리핑
+- [ ] **에이전트 도구 부여**: Bunny에게 CSV/가계부 파일 읽기, Foxy에게 실시간 뉴스 API 요약 등 근거 데이터 제공
+- [ ] **대화 기억 영속화**: 회의 히스토리를 파일로 저장해 세션 간 연속성 확보
+- [ ] **배포**: electron-builder로 .dmg 패키징, 로그인 시 자동 시작, 글로벌 단축키(푸시투토크)
