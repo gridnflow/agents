@@ -484,6 +484,13 @@
       launchMeeting([...selected]);
     });
 
+    // ── 에이전트 비디오 경로 매핑 ──
+    const AGENT_VIDEOS = {
+      fox_news_anchor:       '../../assets/images/foxy_video.mp4',
+      cat_idea_planner:      '../../assets/images/kitty_video.mp4',
+      rabbit_budget_analyst: '../../assets/images/rabbit_video.mp4',
+    };
+
     // ── Meeting room ───────────────────────────────────────
     const agentsRow     = document.getElementById('agents-row');
     const msgInput      = document.getElementById('msg-input');

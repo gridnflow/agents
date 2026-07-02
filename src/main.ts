@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, screen, session } from "electron";
 import path from "path";
 import fs from "fs";
 import { AGENTS } from "./config";
-import { startScheduler, triggerAgent, rescheduleAgent } from "./scheduler";
+import { triggerAgent, rescheduleAgent } from "./scheduler";
 import { BaseAgent } from "./agents/BaseAgent";
 import { transcribeAudio } from "./services/openai";
 
@@ -150,7 +150,7 @@ app.whenReady().then(() => {
     windows.set(agent.id, barWin);
   }
 
-  startScheduler(windows);
+  // startScheduler(windows); // 자동 브리핑 비활성화
 
   // 앱 시작 시 모든 에이전트 인사말 미리 캐싱 (호버 시 즉시 재생)
   for (const agent of AGENTS) {

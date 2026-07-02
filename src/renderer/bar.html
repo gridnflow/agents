@@ -16,10 +16,11 @@
         display: flex;
         gap: 32px;
         padding: 8px 18px;
-        background: rgba(0, 0, 0, 0.18);
-        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.07);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 20px;
         position: absolute;
         bottom: 0; left: 0; right: 0;
       }
@@ -34,18 +35,34 @@
       }
 
       .char-video {
+        object-fit: contain;
+        background: transparent;
+      }
+
+      .char-img, .char-video {
         width: 130px;
         height: 130px;
         object-fit: contain;
-        clip-path: inset(0 0 10px 0);
         filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
         -webkit-app-region: no-drag;
         cursor: pointer;
         transform-origin: bottom center;
-        border-radius: 8px;
       }
 
+
+      @keyframes doWork {
+        0%   { transform: translateY(0px)  rotate(0deg)    scale(1);    }
+        15%  { transform: translateY(-5px) rotate(-2deg)   scale(1.03); }
+        30%  { transform: translateY(-2px) rotate(1.2deg)  scale(1.01); }
+        48%  { transform: translateY(-6px) rotate(-1deg)   scale(1.04); }
+        64%  { transform: translateY(-1px) rotate(1.8deg)  scale(1.01); }
+        80%  { transform: translateY(-4px) rotate(-0.8deg) scale(1.02); }
+        100% { transform: translateY(0px)  rotate(0deg)    scale(1);    }
+      }
+
+      .panel.active .char-img,
       .panel.active .char-video {
+        animation: doWork 1.4s ease-in-out infinite;
         filter: drop-shadow(0 6px 18px rgba(0,0,0,0.45));
       }
 
@@ -221,9 +238,9 @@
 
     <script>
       const AGENTS = [
-        { id: "fox_news_anchor",       name: "Foxy",  role: "News Anchor · Market Intelligence", videoPath: "../../assets/images/foxy_video.mp4" },
-        { id: "cat_idea_planner",      name: "Kitty", role: "Idea Planner · Tech Strategist",    videoPath: "../../assets/images/kitty_video.mp4" },
-        { id: "rabbit_budget_analyst", name: "Bunny", role: "Budget Analyst · Cost Strategy",    videoPath: "../../assets/images/rabbit_video.mp4" },
+        { id: "fox_news_anchor",       name: "Foxy",  role: "News Anchor · Market Intelligence", imagePath: "../../assets/images/foxy_developer-removebg-preview.png",  videoPath: "../../assets/images/foxy_video.mp4" },
+        { id: "cat_idea_planner",      name: "Kitty", role: "Idea Planner · Tech Strategist",    imagePath: "../../assets/images/kitty_marketer-removebg-preview.png", videoPath: "../../assets/images/kitty_video.mp4" },
+        { id: "rabbit_budget_analyst", name: "Bunny", role: "Budget Analyst · Cost Strategy",    imagePath: "../../assets/images/rabbit_accountant-removebg-preview.png", videoPath: "../../assets/images/rabbit_video.mp4" },
       ];
 
       const panels = {};
@@ -231,10 +248,11 @@
       let currentGreetAudio = null; // 전역 인사 오디오 — 에이전트 간 겹침 방지
 
       for (const agent of AGENTS) {
-        const panel    = document.createElement("div");   panel.className = "panel";
-        const bubble   = document.createElement("div");   bubble.className = "bubble";
-        const videoEl  = document.createElement("video"); videoEl.className = "char-video";
-        videoEl.muted = true; videoEl.preload = "auto"; videoEl.style.display = "none";
+        const panel    = document.createElement("div"); panel.className = "panel";
+        const bubble   = document.createElement("div"); bubble.className = "bubble";
+        const imgEl    = document.createElement("img");     imgEl.className = "char-img"; imgEl.style.display = "none";
+        const canvasEl = document.createElement("canvas"); canvasEl.className = "char-video"; canvasEl.width = 130; canvasEl.height = 130; canvasEl.style.display = "none";
+        const videoEl  = document.createElement("video");  videoEl.muted = true; videoEl.playsInline = true; videoEl.style.display = "none";
 
         // 호버 카드
         const hoverCard   = document.createElement("div"); hoverCard.className = "hover-card";
@@ -257,7 +275,7 @@
         const hoverDot  = document.createElement("div"); hoverDot.className = "hover-zone-dot";
         hoverZone.appendChild(hoverDot);
 
-        panel.append(bubble, hoverCard, videoEl, hoverZone);
+        panel.append(bubble, hoverCard, imgEl, canvasEl, hoverZone);
         bar.appendChild(panel);
 
         // 마우스 위치로 hover 토글 + 인사 재생
@@ -379,8 +397,9 @@
               setWorking(false);
               if (result.audioPath) {
                 setVoiceStatus('🔊 Speaking...');
+                showVideo();
                 const audio = new Audio(result.audioPath);
-                await new Promise(r => { audio.onended = r; audio.onerror = r; audio.play().catch(r); });
+                await new Promise(r => { audio.onended = () => { showImage(); r(); }; audio.onerror = r; audio.play().catch(r); });
               }
             }
           } catch { chatResponse.style.display = 'block'; chatResponse.textContent = '⚠ Error'; setWorking(false); }
@@ -404,22 +423,42 @@
 
         micBtn.addEventListener('click', () => { if (liveMode) stopVoice(); else startVoice(); });
 
-        videoEl.src = agent.videoPath;
-        videoEl.onloadeddata = () => { videoEl.style.display = "block"; };
-        videoEl.onended = () => { videoEl.pause(); videoEl.currentTime = 0; };
+        imgEl.src = agent.imagePath;
+        imgEl.onload = () => { imgEl.style.display = "block"; };
 
-        // 클릭 시 비디오 재생 + 인사 오디오
-        videoEl.addEventListener("click", () => {
-          if (currentGreetAudio) { currentGreetAudio.pause(); currentGreetAudio.currentTime = 0; currentGreetAudio = null; }
+        if (agent.videoPath) { videoEl.src = agent.videoPath; }
+
+        const ctx = canvasEl.getContext('2d');
+        let rafId = null;
+
+        const drawFrame = () => {
+          if (videoEl.paused || videoEl.ended) return;
+          ctx.drawImage(videoEl, 0, 0, 130, 130);
+          const frame = ctx.getImageData(0, 0, 130, 130);
+          const d = frame.data;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i] + d[i+1] + d[i+2] < 60) d[i+3] = 0;
+          }
+          ctx.putImageData(frame, 0, 0);
+          rafId = requestAnimationFrame(drawFrame);
+        };
+
+        const showVideo = () => {
+          if (!agent.videoPath) return;
+          imgEl.style.display = "none";
+          canvasEl.style.display = "block";
           videoEl.currentTime = 0;
           videoEl.play().catch(() => {});
-          window.agent.greetAgent(agent.id).then((audioPath) => {
-            currentGreetAudio = new Audio(audioPath);
-            currentGreetAudio.play().catch(() => {});
-          }).catch(() => {});
-        });
+          drawFrame();
+        };
+        const showImage = () => {
+          if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+          canvasEl.style.display = "none";
+          imgEl.style.display = "block";
+        };
+        videoEl.onended = showImage;
 
-        panels[agent.id] = { bubble, setWorking };
+        panels[agent.id] = { bubble, setWorking, showVideo, showImage };
       }
 
       // 브리핑 수신
@@ -428,12 +467,14 @@
         if (!p) return;
 
         p.setWorking(true);
+        p.showVideo();
         p.bubble.textContent = text;
         p.bubble.style.display = "block";
 
         const audio = new Audio(audioPath);
         audio.play();
         audio.onended = () => {
+          p.showImage();
           p.setWorking(false);
           setTimeout(() => { p.bubble.style.display = "none"; }, 2000);
         };
