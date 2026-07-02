@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, session } from "electron";
+import { app, BrowserWindow, ipcMain, screen, session, Tray, Menu, nativeImage } from "electron";
 import path from "path";
 import fs from "fs";
 import { AGENTS } from "./config";
@@ -8,8 +8,12 @@ import { BaseAgent } from "./agents/BaseAgent";
 import { transcribeAudio } from "./services/openai";
 
 const windows = new Map<string, BrowserWindow>();
+let barWin:      BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 let meetingWin:  BrowserWindow | null = null;
+let digestWin:   BrowserWindow | null = null;
+let tray: Tray | null = null;
+let digestRunning = false;
 const greetingCache = new Map<string, string>(); // agentId → audioPath
 
 // 설정 파일 경로 (.env는 프로젝트 루트, settings.json은 userData)
@@ -112,6 +116,67 @@ function createMeetingWindow() {
   meetingWin.on("closed", () => { meetingWin = null; });
 }
 
+// 오늘의 다이제스트 위젯 창
+function createDigestWindow() {
+  if (digestWin && !digestWin.isDestroyed()) {
+    digestWin.focus();
+    return;
+  }
+
+  digestWin = new BrowserWindow({
+    width: 400,
+    height: 540,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+    },
+  });
+
+  digestWin.loadFile(path.join(__dirname, "../src/renderer/digest.html"));
+  digestWin.on("closed", () => { digestWin = null; });
+}
+
+// 메뉴바 트레이 (랩탑 위젯)
+function createTray() {
+  const trayIcon = nativeImage.createFromPath(
+    path.join(app.getAppPath(), "assets/icon/tray.png")
+  );
+  tray = new Tray(trayIcon);
+  tray.setToolTip("AI Agents");
+
+  const menu = Menu.buildFromTemplate([
+    {
+      label: "Show / Hide Bar",
+      click: () => {
+        if (!barWin || barWin.isDestroyed()) return;
+        barWin.isVisible() ? barWin.hide() : barWin.show();
+      },
+    },
+    { type: "separator" },
+    {
+      label: "📋 Run Daily Digest",
+      click: async () => {
+        if (digestRunning) return;
+        digestRunning = true;
+        try { await runDailyDigest(windows); }
+        catch (err) { console.error("[digest] 트레이 실행 실패:", err); }
+        finally { digestRunning = false; }
+      },
+    },
+    { label: "📝 Today's Digest", click: () => createDigestWindow() },
+    { label: "💬 Meeting", click: () => createMeetingWindow() },
+    { label: "⚙️ Settings", click: () => createSettingsWindow() },
+    { type: "separator" },
+    { label: "Quit", click: () => app.quit() },
+  ]);
+  tray.setContextMenu(menu);
+}
+
 function createSettingsWindow() {
   if (settingsWin && !settingsWin.isDestroyed()) {
     settingsWin.focus();
@@ -145,7 +210,13 @@ app.whenReady().then(() => {
     return permission === "media";
   });
 
-  const barWin = createBarWindow();
+  // 독 아이콘 (dev 실행에서도 적용)
+  if (app.dock) {
+    app.dock.setIcon(path.join(app.getAppPath(), "assets/icon/dock.png"));
+  }
+
+  barWin = createBarWindow();
+  createTray();
 
   for (const agent of AGENTS) {
     windows.set(agent.id, barWin);
@@ -248,13 +319,35 @@ ipcMain.handle("close-app", () => {
 
 // 데일리 다이제스트 수동 실행
 ipcMain.handle("run-digest", async () => {
+  if (digestRunning) return { ok: false, error: "already running" };
+  digestRunning = true;
   try {
     const filePath = await runDailyDigest(windows);
     return { ok: true, path: filePath };
   } catch (err) {
     console.error("[digest] 수동 실행 실패:", err);
     return { ok: false, error: String(err) };
+  } finally {
+    digestRunning = false;
   }
+});
+
+// 가장 최근 다이제스트 내용 반환 (위젯용)
+ipcMain.handle("get-latest-digest", () => {
+  const dir = path.join(app.getAppPath(), "digests");
+  if (!fs.existsSync(dir)) return null;
+  const files = fs.readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => ({ f, mtime: fs.statSync(path.join(dir, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
+  if (files.length === 0) return null;
+  const name = files[0].f;
+  return { name, content: fs.readFileSync(path.join(dir, name), "utf-8") };
+});
+
+// 다이제스트 위젯 닫기
+ipcMain.handle("close-digest", () => {
+  if (digestWin && !digestWin.isDestroyed()) digestWin.close();
 });
 
 // 미팅창 열기 (3-agent 그룹 미팅)

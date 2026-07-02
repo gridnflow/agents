@@ -28,6 +28,12 @@ contextBridge.exposeInMainWorld("agent", {
   runDigest: () =>
     ipcRenderer.invoke("run-digest"),
 
+  getLatestDigest: () =>
+    ipcRenderer.invoke("get-latest-digest"),
+
+  closeDigest: () =>
+    ipcRenderer.invoke("close-digest"),
+
   getAgents: () =>
     ipcRenderer.invoke("get-agents"),
 

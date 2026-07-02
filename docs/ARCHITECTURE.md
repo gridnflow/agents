@@ -31,6 +31,9 @@ Electron 표준 구조를 따릅니다. 모든 외부 API 호출(OpenAI, ElevenL
 | 바 | `bar.html` | 600×400, 화면 하단 중앙 (위치는 settings.json에 저장·복원) | 앱 시작 시 |
 | 회의 | `meeting.html` | 680×640 | 바의 💬 버튼 |
 | 설정 | `settings.html` | 420×600 | 바의 ⚙ 버튼 |
+| 다이제스트 위젯 | `digest.html` | 400×540 | 트레이의 "Today's Digest" |
+
+앱 시작 시 메뉴바 **트레이**(`assets/icon/tray.png`)도 생성됩니다 — 바 표시/숨김, 다이제스트 실행, 위젯·회의·설정 열기, 종료 메뉴를 제공합니다. 독 아이콘은 dev 실행에서도 `app.dock.setIcon()`으로 적용되고, 패키징 시에는 `assets/icon/agents.icns`를 사용하면 됩니다.
 
 세 캐릭터는 별도 창이 아니라 **바 창 하나 안의 패널 3개**입니다. `main.ts`의 `windows` Map은 세 agentId 모두 같은 barWin을 가리킵니다.
 
@@ -42,6 +45,8 @@ Electron 표준 구조를 따릅니다. 모든 외부 API 호출(OpenAI, ElevenL
 |---|---|---|
 | `trigger(agentId)` | `trigger-agent` | 수동 브리핑 실행 |
 | `runDigest()` | `run-digest` | 데일리 다이제스트 수동 실행 |
+| `getLatestDigest()` | `get-latest-digest` | 최신 다이제스트 md 내용 (위젯용, mtime 기준) |
+| `closeDigest()` | `close-digest` | 다이제스트 위젯 닫기 |
 | `onBriefing(cb)` | (main → renderer `briefing` 이벤트) | 브리핑 결과 수신 |
 | `meetingMessage(agentId, history)` | `meeting-message` | 대화 응답 (바 1:1 채팅과 회의 모두 사용) |
 | `transcribeAudio(base64)` | `transcribe-audio` | Whisper STT |

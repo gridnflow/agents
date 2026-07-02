@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: transparent;
+      height: 100vh;
+      -webkit-app-region: no-drag;
+    }
+
+    .panel {
+      width: 100%;
+      height: 100%;
+      background: rgba(28, 28, 32, 0.92);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px 10px;
+      -webkit-app-region: drag;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .titlebar h1 {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: -0.2px;
+    }
+    .close-btn {
+      width: 12px; height: 12px;
+      background: #ff5f57;
+      border-radius: 50%;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      border: none;
+      flex-shrink: 0;
+    }
+    .close-btn:hover { background: #ff3b30; }
+    .file-label {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      -webkit-app-region: no-drag;
+    }
+
+    .body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px 20px;
+      color: rgba(255,255,255,0.82);
+      font-size: 12.5px;
+      line-height: 1.65;
+      word-break: keep-all;
+    }
+    .body::-webkit-scrollbar { width: 4px; }
+    .body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .body h1 { font-size: 16px; color: white; margin: 4px 0 12px; letter-spacing: -0.3px; }
+    .body h2 {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
+      color: rgba(255,255,255,0.4); margin: 18px 0 8px;
+      padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .body h3 { font-size: 12px; color: #a5b4fc; margin: 14px 0 4px; }
+    .body p { margin: 4px 0; }
+    .body ul { margin: 4px 0 4px 18px; }
+    .body li { margin: 3px 0; }
+    .body strong { color: white; font-weight: 600; }
+
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 10px;
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+      text-align: center;
+    }
+    .empty .icon { font-size: 40px; }
+  </style>
+</head>
+<body>
+<div class="panel">
+  <div class="titlebar">
+    <button class="close-btn" onclick="window.agent.closeDigest()"></button>
+    <h1>📝 Daily Digest</h1>
+    <span class="file-label" id="file-label"></span>
+  </div>
+  <div class="body" id="content"></div>
+</div>
+
+<script>
+  // 최소한의 마크다운 → HTML 변환 (다이제스트가 쓰는 문법만 지원)
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function inline(s) {
+    return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+  function mdToHtml(md) {
+    const out = [];
+    let inList = false;
+    for (const raw of md.split('\n')) {
+      const line = raw.trimEnd();
+      const bullet = line.match(/^[-*] (.*)/);
+      if (bullet) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        out.push('<li>' + inline(bullet[1]) + '</li>');
+        continue;
+      }
+      if (inList) { out.push('</ul>'); inList = false; }
+
+      let m;
+      if ((m = line.match(/^### (.*)/)))      out.push('<h3>' + inline(m[1]) + '</h3>');
+      else if ((m = line.match(/^## (.*)/)))  out.push('<h2>' + inline(m[1]) + '</h2>');
+      else if ((m = line.match(/^# (.*)/)))   out.push('<h1>' + inline(m[1]) + '</h1>');
+      else if (line.trim())                   out.push('<p>' + inline(line) + '</p>');
+    }
+    if (inList) out.push('</ul>');
+    return out.join('');
+  }
+
+  window.agent.getLatestDigest().then(digest => {
+    const el = document.getElementById('content');
+    if (!digest) {
+      el.innerHTML = '<div class="empty"><div class="icon">📋</div>' +
+        '<div>No digest yet.<br/>Run one from the bar (📋) or the menu bar tray.</div></div>';
+      return;
+    }
+    document.getElementById('file-label').textContent = digest.name;
+    el.innerHTML = mdToHtml(digest.content);
+  });
+</script>
+</body>
+</html>
