@@ -115,7 +115,7 @@ agents/
 └── dev.sh                 # tsc watch + electron 실행 스크립트
 ```
 
-동작 원리(창 구조, IPC 맵, 브리핑·회의·음성 대화 흐름)는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)에 정리되어 있습니다.
+동작 원리(창 구조, IPC 맵, 브리핑·회의·음성 대화 흐름)는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)에, 예상 API 사용료는 [docs/COSTS.md](docs/COSTS.md)에 정리되어 있습니다.
 
 ## 로드맵
 

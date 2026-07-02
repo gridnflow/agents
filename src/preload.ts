@@ -34,6 +34,12 @@ contextBridge.exposeInMainWorld("agent", {
   closeDigest: () =>
     ipcRenderer.invoke("close-digest"),
 
+  getUsage: () =>
+    ipcRenderer.invoke("get-usage"),
+
+  closeUsage: () =>
+    ipcRenderer.invoke("close-usage"),
+
   getAgents: () =>
     ipcRenderer.invoke("get-agents"),
 

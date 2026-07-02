@@ -1,8 +1,8 @@
 """Generate the macOS app icon set (assets/icon/) from the character PNGs.
 
-Background: "Clean White" — white with a subtle cool-grey gradient and gentle
-edge shading so the white rabbit and sticker outlines still separate.
-Requires Pillow; run: python3 tools/make_icon.py
+Background: "Meeting Room" — the meeting_room.png office scene (slightly
+blurred, bottom-shaded for character contrast) with a ground contact shadow
+and an inner highlight border. Requires Pillow; run: python3 tools/make_icon.py
 """
 from PIL import Image, ImageDraw, ImageFilter
 import os, subprocess
@@ -75,9 +75,36 @@ def vignette(strength):
     return dark
 
 
-# ── Clean White background ────────────────────────────────────────────
-bg = apply_mask(vgrad((255, 255, 255), (228, 231, 238)))
-bg = Image.alpha_composite(bg, apply_mask(vignette(28)))
+# ── Meeting Room background ───────────────────────────────────────────
+room = Image.open(os.path.join(IMG, "meeting_room.png")).convert("RGBA")
+room = room.resize((S - 2 * INSET, S - 2 * INSET), Image.LANCZOS)
+room = room.filter(ImageFilter.GaussianBlur(2.5))  # 캐릭터가 주인공이 되도록 살짝 블러
+base = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+base.paste(room, (INSET, INSET))
+bg = apply_mask(base)
+
+# 하단 음영 — 캐릭터·바닥 대비 확보
+shade = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+spx = shade.load()
+for y in range(520, S):
+    a = int(90 * (y - 520) / (S - 520))
+    for x in range(S):
+        spx[x, y] = (16, 22, 38, a)
+bg = Image.alpha_composite(bg, apply_mask(shade))
+bg = Image.alpha_composite(bg, apply_mask(vignette(45)))
+
+# 바닥 접지 그림자 — 캐릭터가 바닥에 앉아 있는 느낌
+ground = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+ImageDraw.Draw(ground).ellipse([236, 800, 788, 872], fill=(10, 14, 26, 90))
+bg = Image.alpha_composite(bg, apply_mask(ground.filter(ImageFilter.GaussianBlur(26))))
+
+# 안쪽 하이라이트 테두리 (유리 느낌)
+edge = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+ImageDraw.Draw(edge).rounded_rectangle(
+    [INSET + 3, INSET + 3, S - INSET - 3, S - INSET - 3],
+    radius=RADIUS - 3, outline=(255, 255, 255, 130), width=4
+)
+bg = Image.alpha_composite(bg, apply_mask(edge.filter(ImageFilter.GaussianBlur(2))))
 
 
 # ── Characters: kitty left, rabbit right (behind), foxy center front ──

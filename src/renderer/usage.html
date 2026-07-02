@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: transparent;
+      height: 100vh;
+      -webkit-app-region: no-drag;
+    }
+
+    .panel {
+      width: 100%;
+      height: 100%;
+      background: rgba(28, 28, 32, 0.92);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px 10px;
+      -webkit-app-region: drag;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .titlebar h1 {
+      font-size: 13px; font-weight: 600;
+      color: rgba(255,255,255,0.9); letter-spacing: -0.2px;
+    }
+    .close-btn {
+      width: 12px; height: 12px;
+      background: #ff5f57; border-radius: 50%;
+      cursor: pointer; -webkit-app-region: no-drag;
+      border: none; flex-shrink: 0;
+    }
+    .close-btn:hover { background: #ff3b30; }
+
+    .body { flex: 1; overflow-y: auto; padding: 16px 18px 18px; }
+
+    .section-title {
+      font-size: 11px; font-weight: 700;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin: 14px 0 8px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    table { width: 100%; border-collapse: collapse; }
+    td {
+      font-size: 12px; color: rgba(255,255,255,0.75);
+      padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    td.amount { text-align: right; color: rgba(255,255,255,0.55); font-variant-numeric: tabular-nums; }
+    td.cost   { text-align: right; color: #a5f3c4; width: 70px; font-variant-numeric: tabular-nums; }
+    tr.total td {
+      font-weight: 700; color: white; border-bottom: none; padding-top: 8px;
+    }
+    tr.total td.cost { color: #4ade80; font-size: 14px; }
+
+    .footnote {
+      margin-top: 14px;
+      font-size: 10px; line-height: 1.6;
+      color: rgba(255,255,255,0.35);
+    }
+  </style>
+</head>
+<body>
+<div class="panel">
+  <div class="titlebar">
+    <button class="close-btn" onclick="window.agent.closeUsage()"></button>
+    <h1>💰 API Usage</h1>
+    <div style="width:12px"></div>
+  </div>
+  <div class="body" id="body">Loading…</div>
+</div>
+
+<script>
+  const fmt$ = (n) => '$' + (n < 0.01 && n > 0 ? n.toFixed(4) : n.toFixed(2));
+  const fmtN = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+  function section(title, { usage, cost }) {
+    return `
+      <div class="section-title">${title}</div>
+      <table>
+        <tr><td>gpt-4o</td><td class="amount">${fmtN(usage.gptIn)} in / ${fmtN(usage.gptOut)} out tok</td><td class="cost">${fmt$(cost.gpt)}</td></tr>
+        <tr><td>Whisper</td><td class="amount">${(usage.whisperSec / 60).toFixed(1)} min</td><td class="cost">${fmt$(cost.whisper)}</td></tr>
+        <tr><td>ElevenLabs</td><td class="amount">${fmtN(usage.ttsChars)} credits</td><td class="cost">${fmt$(cost.tts)}</td></tr>
+        <tr class="total"><td>Total</td><td></td><td class="cost">${fmt$(cost.total)}</td></tr>
+      </table>`;
+  }
+
+  window.agent.getUsage().then(u => {
+    document.getElementById('body').innerHTML =
+      section('Today', u.today) +
+      section('This Month', u.month) +
+      `<div class="footnote">
+        Estimates. gpt-4o $2.50/$10 per 1M tok · Whisper $0.006/min ·
+        ElevenLabs at Starter rate ($5 / 30,000 credits).
+        Tracking started when this feature was added — see docs/COSTS.md.
+      </div>`;
+  });
+</script>
+</body>
+</html>

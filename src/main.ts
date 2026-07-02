@@ -7,6 +7,7 @@ import { runDailyDigest } from "./digest";
 import { appendMessage, getContext } from "./memory";
 import { summarizeLatestCsv } from "./services/csv";
 import { baseDir } from "./paths";
+import { getUsageSummary } from "./services/usage";
 import { BaseAgent } from "./agents/BaseAgent";
 import { transcribeAudio } from "./services/openai";
 
@@ -15,6 +16,7 @@ let barWin:      BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 let meetingWin:  BrowserWindow | null = null;
 let digestWin:   BrowserWindow | null = null;
+let usageWin:    BrowserWindow | null = null;
 let tray: Tray | null = null;
 let digestRunning = false;
 const greetingCache = new Map<string, string>(); // agentId → audioPath
@@ -144,6 +146,31 @@ function createDigestWindow() {
   digestWin.on("closed", () => { digestWin = null; });
 }
 
+// API 사용 비용 위젯 창
+function createUsageWindow() {
+  if (usageWin && !usageWin.isDestroyed()) {
+    usageWin.focus();
+    return;
+  }
+
+  usageWin = new BrowserWindow({
+    width: 360,
+    height: 440,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+    },
+  });
+
+  usageWin.loadFile(path.join(__dirname, "../src/renderer/usage.html"));
+  usageWin.on("closed", () => { usageWin = null; });
+}
+
 // 메뉴바 트레이 (랩탑 위젯)
 function createTray() {
   const trayIcon = nativeImage.createFromPath(
@@ -172,6 +199,7 @@ function createTray() {
       },
     },
     { label: "📝 Today's Digest", click: () => createDigestWindow() },
+    { label: "💰 API Usage", click: () => createUsageWindow() },
     { label: "💬 Meeting", click: () => createMeetingWindow() },
     { label: "⚙️ Settings", click: () => createSettingsWindow() },
     { type: "separator" },
@@ -351,6 +379,14 @@ ipcMain.handle("get-latest-digest", () => {
 // 다이제스트 위젯 닫기
 ipcMain.handle("close-digest", () => {
   if (digestWin && !digestWin.isDestroyed()) digestWin.close();
+});
+
+// API 사용량/비용 조회 (위젯용)
+ipcMain.handle("get-usage", () => getUsageSummary());
+
+// 사용량 위젯 닫기
+ipcMain.handle("close-usage", () => {
+  if (usageWin && !usageWin.isDestroyed()) usageWin.close();
 });
 
 // 미팅창 열기 (3-agent 그룹 미팅)

@@ -1,5 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { ENV } from "../config";
+import { recordTts } from "./usage";
 import fs from "fs";
 import path from "path";
 
@@ -25,5 +26,6 @@ export async function textToSpeech(
   }
 
   fs.writeFileSync(outputPath, Buffer.concat(chunks));
+  recordTts(text.length); // 1글자 = 1크레딧 (multilingual v2)
   return outputPath;
 }
