@@ -106,6 +106,8 @@
       }
 
       .bar:hover .bar-btn { opacity: 1; }
+      /* 캐릭터 팝업 카드가 열려 있는 동안엔 버튼 숨김 — 카드와 겹침 방지 */
+      .bar.card-open .bar-btn { opacity: 0; pointer-events: none; }
 
       .settings-btn {
         right: 6px;
@@ -305,6 +307,7 @@
 
           p.classList.toggle("hovered", inside);
           hc.classList.toggle("visible", inside);
+          bar.classList.toggle("card-open", !!document.querySelector(".hover-card.visible"));
 
           if (leaving) {
             if (currentGreetAudio) { currentGreetAudio.pause(); currentGreetAudio.currentTime = 0; currentGreetAudio = null; }
