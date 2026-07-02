@@ -41,6 +41,7 @@ Electron 표준 구조를 따릅니다. 모든 외부 API 호출(OpenAI, ElevenL
 | Renderer 호출 | Main 핸들러 | 역할 |
 |---|---|---|
 | `trigger(agentId)` | `trigger-agent` | 수동 브리핑 실행 |
+| `runDigest()` | `run-digest` | 데일리 다이제스트 수동 실행 |
 | `onBriefing(cb)` | (main → renderer `briefing` 이벤트) | 브리핑 결과 수신 |
 | `meetingMessage(agentId, history)` | `meeting-message` | 대화 응답 (바 1:1 채팅과 회의 모두 사용) |
 | `transcribeAudio(base64)` | `transcribe-audio` | Whisper STT |
@@ -80,7 +81,25 @@ getUserMedia → AnalyserNode로 RMS 측정 (vadLoop, rAF)
 
 같은 VAD 로직이 `meeting.html`에도 독립 구현으로 중복되어 있습니다 (임계값·타이밍 상수 동일).
 
-### 3. 회의 모드
+### 3. 데일리 다이제스트 (자동 아침 회의)
+
+`digest.ts`의 `runDailyDigest()`가 UI 없이 메인 프로세스에서 릴레이 회의를 실행합니다:
+
+```
+scheduler(schedule-digest 시각, 기본 09:00) 또는 바의 📋 버튼(run-digest IPC)
+  → fetchNews(Foxy 키워드)
+  → Foxy: 오늘의 문제 제기 (뉴스 기반)
+  → Kitty: 해결 아이디어 제안
+  → Bunny: MVP 비용 추정
+  → Kitty: 첫 런칭/검증 전술
+  → summarizeDigest(): gpt-4o 영어 요약 (Today's Problem / Proposed Idea / Estimated Cost / Action Items)
+  → digests/YYYY-MM-DD.md 저장 (같은 날 재실행 시 -HHMM 접미사)
+  → Foxy TTS 알림 → 기존 "briefing" 채널로 바에 말풍선 + 음성 재생
+```
+
+각 턴은 `generateMeetingResponse()`를 단발 호출하는 stateless 구조라 회의창과 독립적입니다. `runDailyDigest`는 electron 의존을 optional로 처리해 plain node로도 headless 실행 가능합니다 (`node -e "require('./dist/digest').runDailyDigest()"`). 다이제스트 시각은 설정창에서 변경할 수 있고 `settings.json`의 `schedule-digest` 키로 저장됩니다.
+
+### 4. 회의 모드
 
 `meeting.html`은 두 화면을 가진 SPA입니다: 초대 화면(참석 에이전트 선택) → 회의룸.
 
@@ -119,8 +138,8 @@ getUserMedia → AnalyserNode로 RMS 측정 (vadLoop, rAF)
 
 ## 알려진 개선 지점
 
-- 회의 히스토리 비영속 (세션 종료 시 소멸) → 파일 저장으로 연속성 확보 가능
+- 회의 히스토리 비영속 (세션 종료 시 소멸) → 파일 저장으로 연속성 확보 가능 (다이제스트는 `digests/*.md`로 영속됨)
 - VAD 로직이 bar.html / meeting.html에 중복 → 공용 모듈로 추출 가능
 - 에이전트 비디오 경로가 renderer에 하드코딩 → `get-agents` IPC로 config에서 내려주도록 통일 가능
-- 자동 브리핑 스케줄러 비활성 상태 → 자동 아침 회의 기능의 진입점
+- 개별 에이전트 자동 브리핑(`startScheduler`)은 비활성 상태 (다이제스트 스케줄만 활성)
 - `/tmp/agents-debug.log`에 디버그 로그 직접 기록 (trigger-agent 핸들러)

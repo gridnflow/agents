@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, screen, session } from "electron";
 import path from "path";
 import fs from "fs";
 import { AGENTS } from "./config";
-import { triggerAgent, rescheduleAgent } from "./scheduler";
+import { triggerAgent, rescheduleAgent, scheduleDailyDigest } from "./scheduler";
+import { runDailyDigest } from "./digest";
 import { BaseAgent } from "./agents/BaseAgent";
 import { transcribeAudio } from "./services/openai";
 
@@ -152,6 +153,10 @@ app.whenReady().then(() => {
 
   // startScheduler(windows); // 자동 브리핑 비활성화
 
+  // 자동 아침 회의 → 데일리 다이제스트
+  const digestTime = readSettingsJson()["schedule-digest"] ?? "09:00";
+  scheduleDailyDigest(digestTime, windows);
+
   // 앱 시작 시 모든 에이전트 인사말 미리 캐싱 (호버 시 즉시 재생)
   for (const agent of AGENTS) {
     const a = new BaseAgent(agent);
@@ -197,6 +202,7 @@ ipcMain.handle("get-settings", () => {
     const key = `schedule-${agent.id}`;
     schedules[key] = sj[key] ?? agent.scheduleTime;
   }
+  schedules["schedule-digest"] = sj["schedule-digest"] ?? "09:00";
   return { ...env, ...schedules };
 });
 
@@ -223,7 +229,8 @@ ipcMain.handle("save-settings", (_event, data: Record<string, string>) => {
   // 스케줄 변경 적용
   for (const [k, v] of Object.entries(sjUpdates)) {
     const agentId = k.replace("schedule-", "");
-    rescheduleAgent(agentId, v, windows);
+    if (agentId === "digest") scheduleDailyDigest(v, windows);
+    else rescheduleAgent(agentId, v, windows);
   }
 
   return { ok: true };
@@ -237,6 +244,17 @@ ipcMain.handle("close-settings", () => {
 // 앱 종료
 ipcMain.handle("close-app", () => {
   app.quit();
+});
+
+// 데일리 다이제스트 수동 실행
+ipcMain.handle("run-digest", async () => {
+  try {
+    const filePath = await runDailyDigest(windows);
+    return { ok: true, path: filePath };
+  } catch (err) {
+    console.error("[digest] 수동 실행 실패:", err);
+    return { ok: false, error: String(err) };
+  }
 });
 
 // 미팅창 열기 (3-agent 그룹 미팅)

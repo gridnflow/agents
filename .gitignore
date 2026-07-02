@@ -12,6 +12,9 @@ dist/
 userData/
 settings.json
 
+# 데일리 다이제스트 결과물
+digests/
+
 # 생성된 오디오 파일
 assets/audio/
 assets/audio/*.mp3

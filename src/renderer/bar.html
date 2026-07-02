@@ -129,6 +129,14 @@
       }
       .meeting-btn:hover { background: rgba(99,102,241,0.85); }
 
+      .digest-btn {
+        right: 90px;
+        background: rgba(52,199,89,0.45);
+        border: 1px solid rgba(52,199,89,0.45) !important;
+        font-size: 12px;
+      }
+      .digest-btn:hover { background: rgba(52,199,89,0.75); }
+
       /* 호버 카드 */
       .hover-card {
         position: absolute;
@@ -231,6 +239,7 @@
   </head>
   <body>
     <div class="bar" id="bar">
+      <button class="bar-btn digest-btn" id="digest-btn" title="Daily Digest 실행">📋</button>
       <button class="bar-btn meeting-btn" id="meeting-btn" title="Meeting">💬</button>
       <button class="bar-btn close-btn"   id="close-btn"   title="닫기">✕</button>
       <button class="bar-btn settings-btn" id="settings-btn" title="설정">⚙</button>
@@ -481,6 +490,14 @@
       });
 
       document.getElementById("meeting-btn").addEventListener("click", () => window.agent.openMeeting());
+      document.getElementById("digest-btn").addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        if (btn.dataset.busy) return;
+        btn.dataset.busy = "1";
+        btn.textContent = "⏳";
+        try { await window.agent.runDigest(); }
+        finally { delete btn.dataset.busy; btn.textContent = "📋"; }
+      });
       document.getElementById("settings-btn").addEventListener("click", () => window.agent.openSettings());
       document.getElementById("close-btn").addEventListener("click", () => window.agent.closeApp());
     </script>

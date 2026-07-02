@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld("agent", {
   openMeeting: () =>
     ipcRenderer.invoke("open-meeting"),
 
+  runDigest: () =>
+    ipcRenderer.invoke("run-digest"),
+
   getAgents: () =>
     ipcRenderer.invoke("get-agents"),
 

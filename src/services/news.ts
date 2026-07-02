@@ -12,7 +12,7 @@ export async function fetchNews(keywords: string[]): Promise<string> {
   const { data } = await axios.get("https://newsapi.org/v2/everything", {
     params: {
       q: query,
-      language: "ko",
+      language: "en",
       sortBy: "publishedAt",
       pageSize: 5,
       apiKey: ENV.NEWS_API_KEY,
@@ -21,7 +21,7 @@ export async function fetchNews(keywords: string[]): Promise<string> {
 
   const articles: Article[] = data.articles ?? [];
 
-  if (articles.length === 0) return "오늘 관련 뉴스가 없습니다.";
+  if (articles.length === 0) return "No relevant news today.";
 
   return articles
     .map((a, i) => `${i + 1}. ${a.title}\n   ${a.description ?? ""}`)

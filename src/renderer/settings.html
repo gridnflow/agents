@@ -239,20 +239,24 @@
       </div>
     </div>
 
-    <!-- 브리핑 스케줄 -->
+    <!-- 스케줄 -->
     <div class="section">
-      <div class="section-title">브리핑 스케줄</div>
+      <div class="section-title">스케줄</div>
       <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;">
-        <label style="margin:0">🦊 Foxy <span style="opacity:0.5;font-weight:400">뉴스 앵커</span></label>
-        <input type="time" id="schedule-fox_plan_architect" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
+        <label style="margin:0">📋 Daily Digest <span style="opacity:0.5;font-weight:400">자동 아침 회의</span></label>
+        <input type="time" id="schedule-digest" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
       </div>
       <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;">
-        <label style="margin:0">🐱 Kitty <span style="opacity:0.5;font-weight:400">마케팅 전략</span></label>
-        <input type="time" id="schedule-cat_marketer" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
+        <label style="margin:0">🦊 Foxy <span style="opacity:0.5;font-weight:400">뉴스 앵커</span></label>
+        <input type="time" id="schedule-fox_news_anchor" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
+      </div>
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;">
+        <label style="margin:0">🐱 Kitty <span style="opacity:0.5;font-weight:400">아이디어 플래너</span></label>
+        <input type="time" id="schedule-cat_idea_planner" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
       </div>
       <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;">
         <label style="margin:0">🐰 Bunny <span style="opacity:0.5;font-weight:400">예산 분석</span></label>
-        <input type="time" id="schedule-rabbit_storyteller" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
+        <input type="time" id="schedule-rabbit_budget_analyst" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
       </div>
     </div>
   </div>
@@ -266,7 +270,11 @@
 <div class="toast" id="toast">✓ 저장됐어요!</div>
 
 <script>
-  const FIELDS = ['OPENAI_API_KEY','ELEVENLABS_API_KEY','NEWS_API_KEY','VOICE_CAT','VOICE_FOX','VOICE_RABBIT','USER_PROFILE'];
+  const FIELDS = [
+    'OPENAI_API_KEY','ELEVENLABS_API_KEY','NEWS_API_KEY',
+    'VOICE_CAT','VOICE_FOX','VOICE_RABBIT','USER_PROFILE',
+    'schedule-digest','schedule-fox_news_anchor','schedule-cat_idea_planner','schedule-rabbit_budget_analyst',
+  ];
 
   // 현재 값 불러오기
   window.agent.getSettings().then(settings => {

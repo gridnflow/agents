@@ -13,6 +13,7 @@ export async function transcribeAudio(buffer: Buffer): Promise<string> {
     const transcription = await client.audio.transcriptions.create({
       file: fs.createReadStream(tmpPath),
       model: "whisper-1",
+      language: "en",
     });
     return transcription.text;
   } finally {
@@ -31,6 +32,25 @@ export async function generateMeetingResponse(
       ...history,
     ],
     max_tokens: 120,
+  });
+  return response.choices[0].message.content ?? "";
+}
+
+export async function summarizeDigest(transcript: string): Promise<string> {
+  const response = await client.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content:
+          `You summarize a short standup between AI agents (Foxy: problem hunter, Kitty: idea planner, Bunny: budget analyst) ` +
+          `into an English markdown digest for their boss. ` +
+          `Use exactly these sections: "### Today's Problem", "### Proposed Idea", "### Estimated Cost", "### Action Items" (2-3 bullets). ` +
+          `Be concrete and concise. English only.`,
+      },
+      { role: "user", content: transcript },
+    ],
+    max_tokens: 500,
   });
   return response.choices[0].message.content ?? "";
 }
