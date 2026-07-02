@@ -48,7 +48,7 @@ Electron 표준 구조를 따릅니다. 모든 외부 API 호출(OpenAI, ElevenL
 | `getLatestDigest()` | `get-latest-digest` | 최신 다이제스트 md 내용 (위젯용, mtime 기준) |
 | `closeDigest()` | `close-digest` | 다이제스트 위젯 닫기 |
 | `onBriefing(cb)` | (main → renderer `briefing` 이벤트) | 브리핑 결과 수신 |
-| `meetingMessage(agentId, history)` | `meeting-message` | 대화 응답 (바 1:1 채팅과 회의 모두 사용) |
+| `meetingMessage(agentId, text)` | `meeting-message` | 대화 응답 (바 1:1 채팅과 회의 모두 사용) |
 | `transcribeAudio(base64)` | `transcribe-audio` | Whisper STT |
 | `greetAgent(agentId)` | `greet-agent` | 인사 TTS (캐시) |
 | `getAgents()` | `get-agents` | 에이전트 메타 목록 |
@@ -97,6 +97,7 @@ scheduler(schedule-digest 시각, 기본 09:00) 또는 바의 📋 버튼(run-di
   → Kitty: 해결 아이디어 제안
   → Bunny: MVP 비용 추정
   → Kitty: 첫 런칭/검증 전술
+  → 각 턴이 해당 에이전트의 영속 기억(memory/conversations.json)에도 저장됨
   → summarizeDigest(): gpt-4o 영어 요약 (Today's Problem / Proposed Idea / Estimated Cost / Action Items)
   → digests/YYYY-MM-DD.md 저장 (같은 날 재실행 시 -HHMM 접미사)
   → Foxy TTS 알림 → 기존 "briefing" 채널로 바에 말풍선 + 음성 재생
@@ -108,7 +109,7 @@ scheduler(schedule-digest 시각, 기본 09:00) 또는 바의 📋 버튼(run-di
 
 `meeting.html`은 두 화면을 가진 SPA입니다: 초대 화면(참석 에이전트 선택) → 회의룸.
 
-- **히스토리**: `agentHistories[agentId]`로 에이전트별 독립 히스토리(최대 20 메시지)를 렌더러가 들고, 매 요청마다 IPC로 전체 전달. 메인 프로세스는 stateless — `BaseAgent`는 요청마다 새로 생성됩니다. **세션이 끝나면 히스토리는 사라집니다.**
+- **히스토리 (영속)**: 히스토리 소유권은 메인 프로세스의 `memory.ts`에 있습니다. 렌더러는 새 메시지 텍스트만 IPC로 보내고, 메인이 `memory/conversations.json`에 에이전트별로 저장(최대 60개 보관, 최근 20개를 LLM 컨텍스트로 사용)합니다. 바 1:1 대화·회의·다이제스트가 **같은 에이전트 기억을 공유**하므로 앱을 재시작해도 이전 대화가 이어집니다. `BaseAgent`는 요청마다 새로 생성됩니다(stateless).
 - **응답 라우팅**: 메시지에 이름/별칭이 포함되면 해당 에이전트만 응답, 없으면 참석 전원이 순차 응답. 별칭 테이블은 Whisper 오인식 보정용입니다 (예: "Bunny" → "Bonnie").
 - **순차 발화**: for-loop로 한 에이전트씩 응답 생성 → 말풍선 + TTS 재생이 끝나야 다음 에이전트로 넘어갑니다. 릴레이 구조(Foxy가 문제 제시 → Kitty가 아이디어 전개)는 이 순차 실행 + 시스템 프롬프트로 구현됩니다.
 - 마이크(VAD 라이브 모드)와 카메라(셀프뷰)도 지원합니다.
@@ -143,7 +144,7 @@ scheduler(schedule-digest 시각, 기본 09:00) 또는 바의 📋 버튼(run-di
 
 ## 알려진 개선 지점
 
-- 회의 히스토리 비영속 (세션 종료 시 소멸) → 파일 저장으로 연속성 확보 가능 (다이제스트는 `digests/*.md`로 영속됨)
+- ~~회의 히스토리 비영속~~ → `memory.ts`로 해결 (에이전트별 영속 대화 기억)
 - VAD 로직이 bar.html / meeting.html에 중복 → 공용 모듈로 추출 가능
 - 에이전트 비디오 경로가 renderer에 하드코딩 → `get-agents` IPC로 config에서 내려주도록 통일 가능
 - 개별 에이전트 자동 브리핑(`startScheduler`)은 비활성 상태 (다이제스트 스케줄만 활성)

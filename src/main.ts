@@ -4,6 +4,7 @@ import fs from "fs";
 import { AGENTS } from "./config";
 import { triggerAgent, rescheduleAgent, scheduleDailyDigest } from "./scheduler";
 import { runDailyDigest } from "./digest";
+import { appendMessage, getContext } from "./memory";
 import { BaseAgent } from "./agents/BaseAgent";
 import { transcribeAudio } from "./services/openai";
 
@@ -367,11 +368,15 @@ ipcMain.handle("get-agents", () =>
 );
 
 // 미팅 메시지: 특정 에이전트에게 질문 → { text, audioPath }
-ipcMain.handle("meeting-message", async (_event, agentId: string, history: { role: "user" | "assistant"; content: string }[]) => {
+// 히스토리는 메인 프로세스가 memory/conversations.json에 영속 관리한다.
+ipcMain.handle("meeting-message", async (_event, agentId: string, text: string) => {
   const agentConfig = AGENTS.find((a) => a.id === agentId);
   if (!agentConfig) throw new Error(`Agent not found: ${agentId}`);
+  appendMessage(agentId, "user", text);
   const agent = new BaseAgent(agentConfig);
-  return agent.runMeeting(history);
+  const result = await agent.runMeeting(getContext(agentId));
+  if (result.text) appendMessage(agentId, "assistant", result.text);
+  return result;
 });
 
 // 음성 → Whisper STT

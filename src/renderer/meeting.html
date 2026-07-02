@@ -503,8 +503,7 @@
     const seats = {};
     let agentOrder = [];
     let busy = false;
-    const agentHistories = {}; // agentId → [{role, content}]
-    const MAX_HISTORY = 20;    // 메시지 최대 보관 수 (token 절약)
+    // 대화 히스토리는 메인 프로세스가 영속 관리 (memory/conversations.json)
 
     function launchMeeting(selectedIds) {
       // Transition: hide invite, show meeting
@@ -598,24 +597,15 @@
       for (const id of respondingIds) {
         const s = seats[id];
 
-        // 히스토리에 유저 메시지 추가
-        if (!agentHistories[id]) agentHistories[id] = [];
-        agentHistories[id].push({ role: 'user', content: text });
-        if (agentHistories[id].length > MAX_HISTORY) agentHistories[id].shift();
-
         let r;
         try {
-          r = await window.agent.meetingMessage(id, agentHistories[id]);
+          r = await window.agent.meetingMessage(id, text);
         } catch {
           r = { text: null, audioPath: null };
         }
 
         s.seat.classList.remove('thinking');
         if (!r?.text) continue;
-
-        // 히스토리에 에이전트 응답 추가
-        agentHistories[id].push({ role: 'assistant', content: r.text });
-        if (agentHistories[id].length > MAX_HISTORY) agentHistories[id].shift();
 
         s.bubble.textContent = r.text;
         s.seat.classList.add('speaking');

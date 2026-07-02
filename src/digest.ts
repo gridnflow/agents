@@ -5,6 +5,7 @@ import { AGENTS, AgentConfig } from "./config";
 import { BaseAgent } from "./agents/BaseAgent";
 import { fetchNews } from "./services/news";
 import { generateMeetingResponse, summarizeDigest } from "./services/openai";
+import { appendMessage } from "./memory";
 
 // Electron 없이(headless 테스트) 실행돼도 동작하도록 앱 경로를 안전하게 조회
 function getBaseDir(): string {
@@ -29,10 +30,18 @@ interface Turn {
 }
 
 // 에이전트 한 명에게 단발 발언 요청 (다이제스트 릴레이용)
-async function speakTurn(agent: AgentConfig, prompt: string): Promise<string> {
-  return generateMeetingResponse(agent.systemPrompt, [
+// memo가 있으면 프롬프트 대신 압축 버전을 에이전트 기억에 남긴다 (뉴스 덤프 제외용)
+async function speakTurn(
+  agent: AgentConfig,
+  prompt: string,
+  memo?: string
+): Promise<string> {
+  const text = await generateMeetingResponse(agent.systemPrompt, [
     { role: "user", content: prompt },
   ]);
+  appendMessage(agent.id, "user", memo ?? prompt);
+  appendMessage(agent.id, "assistant", text);
+  return text;
 }
 
 /**
@@ -59,7 +68,8 @@ export async function runDailyDigest(
     foxy,
     `[Daily standup — no user present, you are briefing the team] ` +
       `Here are today's news search results:\n${news}\n\n` +
-      `Report the single most interesting real-world problem or complaint people have today.`
+      `Report the single most interesting real-world problem or complaint people have today.`,
+    `[Daily standup] Report the single most interesting real-world problem today.`
   );
   push(foxy.name, foxyText);
 

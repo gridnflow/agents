@@ -148,12 +148,12 @@
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(255,255,255,0.13);
         border-radius: 14px;
-        padding: 10px 14px;
+        padding: 10px 10px;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 5px;
-        width: 214px;
+        width: 150px; /* 패널 폭(155px) 이하 — 인접 카드와 겹침 방지 */
         opacity: 0;
         transition: opacity 0.18s ease, transform 0.18s ease;
         pointer-events: none;
@@ -326,8 +326,7 @@
         let liveMode = false, micStream = null, audioCtx = null, analyserNode = null;
         let vadBuf = null, recorder = null, micChunks = [], isCapturing = false;
         let lastSpeech = 0, captureStart = 0, vadRafId = null, voiceBusy = false;
-        const barHistory = []; // 1:1 대화 히스토리
-        const BAR_MAX_HISTORY = 20;
+        // 대화 히스토리는 메인 프로세스가 영속 관리 (memory/conversations.json)
 
         const setVoiceStatus = (text) => {
           voiceStatus.textContent = text;
@@ -398,10 +397,7 @@
             if (text.trim()) {
               setWorking(true);
               chatResponse.style.display = 'block'; chatResponse.textContent = '...';
-              barHistory.push({ role: 'user', content: text.trim() });
-              if (barHistory.length > BAR_MAX_HISTORY) barHistory.shift();
-              const result = await window.agent.meetingMessage(agent.id, [...barHistory]);
-              if (result.text) { barHistory.push({ role: 'assistant', content: result.text }); if (barHistory.length > BAR_MAX_HISTORY) barHistory.shift(); }
+              const result = await window.agent.meetingMessage(agent.id, text.trim());
               chatResponse.textContent = result.text || '';
               setWorking(false);
               if (result.audioPath) {

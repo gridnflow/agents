@@ -37,8 +37,8 @@ contextBridge.exposeInMainWorld("agent", {
   getAgents: () =>
     ipcRenderer.invoke("get-agents"),
 
-  meetingMessage: (agentId: string, history: { role: string; content: string }[]) =>
-    ipcRenderer.invoke("meeting-message", agentId, history),
+  meetingMessage: (agentId: string, text: string) =>
+    ipcRenderer.invoke("meeting-message", agentId, text),
 
   transcribeAudio: (base64: string) =>
     ipcRenderer.invoke("transcribe-audio", base64),
