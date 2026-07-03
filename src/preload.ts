@@ -4,6 +4,9 @@ contextBridge.exposeInMainWorld("agent", {
   onBriefing: (callback: (data: { agentId: string; text: string; audioPath: string }) => void) =>
     ipcRenderer.on("briefing", (_event, data) => callback(data)),
 
+  onToggleVoice: (callback: (agentId: string) => void) =>
+    ipcRenderer.on("toggle-voice", (_event, agentId) => callback(agentId)),
+
   trigger: (agentId: string) =>
     ipcRenderer.invoke("trigger-agent", agentId),
 

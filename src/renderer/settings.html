@@ -239,6 +239,15 @@
       </div>
     </div>
 
+    <!-- 일반 -->
+    <div class="section">
+      <div class="section-title">일반</div>
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;">
+        <label style="margin:0">로그인 시 자동 시작 <span style="opacity:0.5;font-weight:400">(설치된 앱에서만 동작)</span></label>
+        <input type="checkbox" id="LOGIN_AT_START" style="width:16px;height:16px;accent-color:#3b82f6;" />
+      </div>
+    </div>
+
     <!-- 스케줄 -->
     <div class="section">
       <div class="section-title">스케줄</div>
@@ -274,13 +283,16 @@
     'OPENAI_API_KEY','ELEVENLABS_API_KEY','NEWS_API_KEY',
     'VOICE_CAT','VOICE_FOX','VOICE_RABBIT','USER_PROFILE',
     'schedule-digest','schedule-fox_news_anchor','schedule-cat_idea_planner','schedule-rabbit_budget_analyst',
+    'LOGIN_AT_START',
   ];
 
   // 현재 값 불러오기
   window.agent.getSettings().then(settings => {
     for (const key of FIELDS) {
       const el = document.getElementById(key);
-      if (el && settings[key]) el.value = settings[key];
+      if (!el || settings[key] === undefined) continue;
+      if (el.type === 'checkbox') el.checked = settings[key] === 'true';
+      else if (settings[key]) el.value = settings[key];
     }
   });
 
@@ -292,7 +304,8 @@
     const data = {};
     for (const key of FIELDS) {
       const el = document.getElementById(key);
-      if (el) data[key] = el.value.trim();
+      if (!el) continue;
+      data[key] = el.type === 'checkbox' ? String(el.checked) : el.value.trim();
     }
 
     const result = await window.agent.saveSettings(data);

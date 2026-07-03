@@ -1,6 +1,8 @@
-import { app, BrowserWindow, ipcMain, screen, session, Tray, Menu, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain, screen, session, Tray, Menu, nativeImage, globalShortcut } from "electron";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
+import { textToSpeech } from "./services/elevenlabs";
 import { AGENTS } from "./config";
 import { triggerAgent, rescheduleAgent, scheduleDailyDigest } from "./scheduler";
 import { runDailyDigest } from "./digest";
@@ -259,11 +261,30 @@ app.whenReady().then(() => {
   const digestTime = readSettingsJson()["schedule-digest"] ?? "09:00";
   scheduleDailyDigest(digestTime, windows);
 
-  // 앱 시작 시 모든 에이전트 인사말 미리 캐싱 (호버 시 즉시 재생)
+  // 글로벌 단축키: ⌘⇧Space → Foxy와 음성 대화 토글 (푸시투토크)
+  globalShortcut.register("CommandOrControl+Shift+Space", () => {
+    if (!barWin || barWin.isDestroyed()) return;
+    if (!barWin.isVisible()) barWin.show();
+    barWin.webContents.send("toggle-voice", "fox_news_anchor");
+  });
+
+  // 앱 시작 시 모든 에이전트 인사말 준비 (호버 시 즉시 재생)
+  // 인사말은 고정 문구이므로 디스크에 한 번 생성해 재사용 (TTS 크레딧 절약)
   for (const agent of AGENTS) {
-    const a = new BaseAgent(agent);
-    a.speak(agent.greeting)
-      .then(path => { greetingCache.set(agent.id, path); console.log(`[greeting cached] ${agent.id}`); })
+    const hash = crypto
+      .createHash("md5")
+      .update(`${agent.voiceId}:${agent.greeting}`)
+      .digest("hex")
+      .slice(0, 8);
+    const cachedPath = path.join(baseDir(), "assets/audio", `greeting_${agent.id}_${hash}.mp3`);
+
+    if (fs.existsSync(cachedPath)) {
+      greetingCache.set(agent.id, cachedPath);
+      console.log(`[greeting cached from disk] ${agent.id}`);
+      continue;
+    }
+    textToSpeech(agent.greeting, agent.voiceId, cachedPath)
+      .then(p => { greetingCache.set(agent.id, p); console.log(`[greeting generated] ${agent.id}`); })
       .catch(err => console.error(`[greeting cache error] ${agent.id}:`, err));
   }
 });
@@ -305,7 +326,11 @@ ipcMain.handle("get-settings", () => {
     schedules[key] = sj[key] ?? agent.scheduleTime;
   }
   schedules["schedule-digest"] = sj["schedule-digest"] ?? "09:00";
-  return { ...env, ...schedules };
+  return {
+    ...env,
+    ...schedules,
+    LOGIN_AT_START: app.getLoginItemSettings().openAtLogin ? "true" : "false",
+  };
 });
 
 // 설정 저장
@@ -320,6 +345,8 @@ ipcMain.handle("save-settings", (_event, data: Record<string, string>) => {
       if (v) envUpdates[k] = v;
     } else if (k.startsWith("schedule-")) {
       if (v) sjUpdates[k] = v;
+    } else if (k === "LOGIN_AT_START") {
+      app.setLoginItemSettings({ openAtLogin: v === "true" });
     }
   }
 
@@ -440,6 +467,10 @@ ipcMain.handle("greet-agent", async (_event, agentId: string) => {
   const audioPath = await agent.speak(agentConfig.greeting);
   greetingCache.set(agentId, audioPath);
   return audioPath;
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on("window-all-closed", () => {

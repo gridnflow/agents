@@ -290,7 +290,9 @@
         bar.appendChild(panel);
 
         // 마우스 위치로 hover 토글 + 인사 재생
+        // pinned: 글로벌 단축키로 연 음성 모드 — 마우스가 벗어나도 카드 유지
         let wasInside = false;
+        let pinned = false;
         document.addEventListener("mousemove", ((p, hc, id) => (e) => {
           const pr = p.getBoundingClientRect();
           const cr = hc.getBoundingClientRect();
@@ -305,11 +307,11 @@
           const entering = inside && !wasInside;
           const leaving  = !inside && wasInside;
 
-          p.classList.toggle("hovered", inside);
-          hc.classList.toggle("visible", inside);
+          p.classList.toggle("hovered", inside || pinned);
+          hc.classList.toggle("visible", inside || pinned);
           bar.classList.toggle("card-open", !!document.querySelector(".hover-card.visible"));
 
-          if (leaving) {
+          if (leaving && !pinned) {
             if (currentGreetAudio) { currentGreetAudio.pause(); currentGreetAudio.currentTime = 0; currentGreetAudio = null; }
             stopVoice();
           }
@@ -351,6 +353,7 @@
           audioCtx?.close();
           audioCtx = null; analyserNode = null; micStream = null; vadBuf = null;
           recorder = null; isCapturing = false; liveMode = false; voiceBusy = false;
+          pinned = false;
           micBtn.classList.remove('on'); micBtn.textContent = '🎙️';
           setVoiceStatus('');
         };
@@ -466,7 +469,24 @@
         };
         videoEl.onended = showImage;
 
-        panels[agent.id] = { bubble, setWorking, showVideo, showImage };
+        // 글로벌 단축키(⌘⇧Space) → 음성 모드 토글 + 카드 고정
+        const toggleVoice = () => {
+          if (liveMode) {
+            pinned = false;
+            stopVoice();
+            hoverCard.classList.remove("visible");
+            panel.classList.remove("hovered");
+            bar.classList.toggle("card-open", !!document.querySelector(".hover-card.visible"));
+          } else {
+            pinned = true;
+            hoverCard.classList.add("visible");
+            panel.classList.add("hovered");
+            bar.classList.add("card-open");
+            startVoice();
+          }
+        };
+
+        panels[agent.id] = { bubble, setWorking, showVideo, showImage, toggleVoice };
       }
 
       // 브리핑 수신
@@ -487,6 +507,9 @@
           setTimeout(() => { p.bubble.style.display = "none"; }, 2000);
         };
       });
+
+      // 글로벌 단축키 수신 (⌘⇧Space → Foxy 음성 대화 토글)
+      window.agent.onToggleVoice((agentId) => panels[agentId]?.toggleVoice?.());
 
       document.getElementById("meeting-btn").addEventListener("click", () => window.agent.openMeeting());
       document.getElementById("digest-btn").addEventListener("click", async (e) => {
